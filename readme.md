@@ -44,7 +44,7 @@ Pour exécuter ce projet, vous aurez besoin des dépendances suivantes :
 
 1. Cloner le dépôt :
 ```bash
-git clone [URL_DU_REPO]
+git clone git@github.com:fryou12/Local.LLM.tradUI.git
 cd book-translator
 ```
 
