@@ -1,0 +1,307 @@
+
+> pdf-translator@1.0.0 dev
+> vite
+
+2025-02-14T21:11:25.788Z vite:config bundled config file loaded in 15.58ms
+2025-02-14T21:11:25.795Z vite:config using resolved config: {
+  plugins: [
+    'vite:optimized-deps',
+    'vite:watch-package-data',
+    'vite:pre-alias',
+    'alias',
+    'vite:react-babel',
+    'vite:react-refresh',
+    'vite:modulepreload-polyfill',
+    'vite:resolve',
+    'vite:html-inline-proxy',
+    'vite:css',
+    'vite:esbuild',
+    'vite:json',
+    'vite:wasm-helper',
+    'vite:worker',
+    'vite:asset',
+    'vite:wasm-fallback',
+    'vite:define',
+    'vite:css-post',
+    'vite:worker-import-meta-url',
+    'vite:asset-import-meta-url',
+    'vite:dynamic-import-vars',
+    'vite:import-glob',
+    'vite:client-inject',
+    'vite:css-analysis',
+    'vite:import-analysis'
+  ],
+  server: {
+    preTransformRequests: true,
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: true,
+    open: true,
+    proxy: { '/api': [Object] },
+    sourcemapIgnoreList: [Function: isInNodeModules$1],
+    middlewareMode: false,
+    fs: {
+      strict: true,
+      allow: [Array],
+      deny: [Array],
+      cachedChecks: undefined
+    }
+  },
+  optimizeDeps: {
+    holdUntilCrawlEnd: true,
+    force: undefined,
+    esbuildOptions: { preserveSymlinks: false, jsx: 'automatic' },
+    include: [
+      'react',
+      'react-dom',
+      'react/jsx-dev-runtime',
+      'react/jsx-runtime'
+    ]
+  },
+  esbuild: { jsxDev: true, jsx: 'automatic', jsxImportSource: undefined },
+  build: {
+    target: [ 'es2020', 'edge88', 'firefox78', 'chrome87', 'safari14' ],
+    cssTarget: [ 'es2020', 'edge88', 'firefox78', 'chrome87', 'safari14' ],
+    outDir: 'dist',
+    assetsDir: 'assets',
+    assetsInlineLimit: 4096,
+    cssCodeSplit: true,
+    sourcemap: false,
+    rollupOptions: { onwarn: [Function: onwarn] },
+    minify: 'esbuild',
+    terserOptions: {},
+    write: true,
+    emptyOutDir: null,
+    copyPublicDir: true,
+    manifest: false,
+    lib: false,
+    ssr: false,
+    ssrManifest: false,
+    ssrEmitAssets: false,
+    reportCompressedSize: true,
+    chunkSizeWarningLimit: 500,
+    watch: null,
+    commonjsOptions: { include: [Array], extensions: [Array] },
+    dynamicImportVarsOptions: { warnOnError: true, exclude: [Array] },
+    modulePreload: { polyfill: true },
+    cssMinify: true
+  },
+  resolve: {
+    mainFields: [ 'browser', 'module', 'jsnext:main', 'jsnext' ],
+    conditions: [],
+    extensions: [
+      '.mjs',  '.js',
+      '.mts',  '.ts',
+      '.jsx',  '.tsx',
+      '.json'
+    ],
+    dedupe: [ 'react', 'react-dom' ],
+    preserveSymlinks: false,
+    alias: [ [Object], [Object] ]
+  },
+  configFile: '/Users/thomasfry/Desktop/code/Book translator/frontend/vite.config.ts',
+  configFileDependencies: [
+    '/Users/thomasfry/Desktop/code/Book translator/frontend/vite.config.ts'
+  ],
+  inlineConfig: {
+    root: undefined,
+    base: undefined,
+    mode: undefined,
+    configFile: undefined,
+    logLevel: undefined,
+    clearScreen: undefined,
+    optimizeDeps: { force: undefined },
+    server: {}
+  },
+  root: '/Users/thomasfry/Desktop/code/Book translator/frontend',
+  base: '/',
+  decodedBase: '/',
+  rawBase: '/',
+  publicDir: '/Users/thomasfry/Desktop/code/Book translator/frontend/public',
+  cacheDir: '/Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite',
+  command: 'serve',
+  mode: 'development',
+  ssr: {
+    target: 'node',
+    optimizeDeps: { noDiscovery: true, esbuildOptions: [Object] }
+  },
+  isWorker: false,
+  mainConfig: null,
+  bundleChain: [],
+  isProduction: false,
+  css: { lightningcss: undefined },
+  preview: {
+    port: undefined,
+    strictPort: true,
+    host: '0.0.0.0',
+    allowedHosts: undefined,
+    https: undefined,
+    open: true,
+    proxy: { '/api': [Object] },
+    cors: undefined,
+    headers: undefined
+  },
+  envDir: '/Users/thomasfry/Desktop/code/Book translator/frontend',
+  env: { BASE_URL: '/', MODE: 'development', DEV: true, PROD: false },
+  assetsInclude: [Function: assetsInclude],
+  logger: {
+    hasWarned: false,
+    info: [Function: info],
+    warn: [Function: warn],
+    warnOnce: [Function: warnOnce],
+    error: [Function: error],
+    clearScreen: [Function: clearScreen],
+    hasErrorLogged: [Function: hasErrorLogged]
+  },
+  packageCache: Map(1) {
+    'fnpd_/Users/thomasfry/Desktop/code/Book translator/frontend' => {
+      dir: '/Users/thomasfry/Desktop/code/Book translator/frontend',
+      data: [Object],
+      hasSideEffects: [Function: hasSideEffects],
+      webResolvedImports: {},
+      nodeResolvedImports: {},
+      setResolvedCache: [Function: setResolvedCache],
+      getResolvedCache: [Function: getResolvedCache]
+    },
+    set: [Function (anonymous)]
+  },
+  createResolver: [Function: createResolver],
+  worker: { format: 'iife', plugins: '() => plugins', rollupOptions: {} },
+  appType: 'spa',
+  experimental: { importGlobRestoreExtension: false, hmrPartialAccept: false },
+  webSocketToken: 'r7sVv5T_ZY0o',
+  additionalAllowedHosts: [ '0.0.0.0', '0.0.0.0' ],
+  getSortedPlugins: [Function: getSortedPlugins],
+  getSortedPluginHooks: [Function: getSortedPluginHooks]
+}
+2025-02-14T21:11:25.811Z vite:deps Hash is consistent. Skipping. Use --force to override.
+
+  VITE v5.4.14  ready in 267 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://192.168.1.143:5173/
+  ➜  press h + enter to show help
+2025-02-14T21:11:25.827Z vite:html-fallback Rewriting GET / to /index.html
+2025-02-14T21:11:25.840Z vite:resolve 0.88ms /src/main.tsx -> /Users/thomasfry/Desktop/code/Book translator/frontend/src/main.tsx
+2025-02-14T21:11:25.840Z vite:resolve 0.77ms /index.html?html-proxy&direct&index=0.css -> /Users/thomasfry/Desktop/code/Book translator/frontend/index.html?html-proxy&direct&index=0.css
+2025-02-14T21:11:25.844Z vite:load 3.09ms [fs] /src/main.tsx
+2025-02-14T21:11:25.985Z vite:time 0.21ms /
+2025-02-14T21:11:25.988Z vite:import-analysis [skipped] index.html?html-proxy&direct&index=0.css
+2025-02-14T21:11:25.989Z vite:time 163.82ms /index.html
+2025-02-14T21:11:25.991Z vite:resolve 0.35ms ./App -> /Users/thomasfry/Desktop/code/Book translator/frontend/src/App.js
+2025-02-14T21:11:25.991Z vite:resolve 0.37ms ./index.css -> /Users/thomasfry/Desktop/code/Book translator/frontend/src/index.css
+2025-02-14T21:11:25.991Z vite:resolve 0.45ms react/jsx-dev-runtime -> /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=a9ce1768
+2025-02-14T21:11:25.991Z vite:resolve 0.42ms react -> /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/react.js?v=a9ce1768
+2025-02-14T21:11:25.991Z vite:resolve 0.42ms react-dom/client -> /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/react-dom_client.js?v=a9ce1768
+2025-02-14T21:11:25.992Z vite:import-analysis /node_modules/.vite/deps/react_jsx-dev-runtime.js?v=a9ce1768 needs interop
+2025-02-14T21:11:25.992Z vite:import-analysis /node_modules/.vite/deps/react.js?v=a9ce1768 needs interop
+2025-02-14T21:11:25.992Z vite:import-analysis /node_modules/.vite/deps/react-dom_client.js?v=a9ce1768 needs interop
+2025-02-14T21:11:25.992Z vite:optimize-deps load /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/react_jsx-dev-runtime.js
+2025-02-14T21:11:25.992Z vite:optimize-deps load /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/react.js
+2025-02-14T21:11:25.993Z vite:optimize-deps load /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/react-dom_client.js
+2025-02-14T21:11:25.993Z vite:import-analysis 2.55ms [5 imports rewritten] src/main.tsx
+2025-02-14T21:11:25.994Z vite:transform 149.38ms /src/main.tsx
+2025-02-14T21:11:25.998Z vite:load 5.36ms [plugin] /node_modules/.vite/deps/react.js?v=a9ce1768
+2025-02-14T21:11:25.998Z vite:resolve 0.15ms ./chunk-I4MZPW7S.js -> /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/chunk-I4MZPW7S.js?v=a9ce1768
+2025-02-14T21:11:25.998Z vite:optimize-deps load /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/chunk-I4MZPW7S.js
+2025-02-14T21:11:25.998Z vite:import-analysis 0.45ms [1 imports rewritten] node_modules/.vite/deps/react.js?v=a9ce1768
+2025-02-14T21:11:25.999Z vite:transform 0.66ms /node_modules/.vite/deps/react.js?v=a9ce1768
+2025-02-14T21:11:25.999Z vite:load 6.12ms [fs] /src/App.js
+2025-02-14T21:11:26.025Z vite:resolve 0.63ms react/jsx-runtime -> /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/react_jsx-runtime.js?v=a9ce1768
+2025-02-14T21:11:26.025Z vite:resolve 0.73ms @heroicons/react/24/outline -> /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/@heroicons_react_24_outline.js?v=a9ce1768
+2025-02-14T21:11:26.025Z vite:import-analysis /node_modules/.vite/deps/react.js?v=a9ce1768 needs interop
+2025-02-14T21:11:26.025Z vite:import-analysis /node_modules/.vite/deps/react_jsx-runtime.js?v=a9ce1768 needs interop
+2025-02-14T21:11:26.026Z vite:cache [memory] /node_modules/.vite/deps/react.js?v=a9ce1768
+2025-02-14T21:11:26.026Z vite:hmr [self-accepts] src/App.js
+2025-02-14T21:11:26.026Z vite:load 0.74ms [plugin] /@react-refresh
+2025-02-14T21:11:26.026Z vite:optimize-deps load /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/react_jsx-runtime.js
+2025-02-14T21:11:26.026Z vite:optimize-deps load /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/@heroicons_react_24_outline.js
+2025-02-14T21:11:26.026Z vite:import-analysis 2.96ms [4 imports rewritten] src/App.js
+2025-02-14T21:11:26.026Z vite:transform 27.29ms /src/App.js
+2025-02-14T21:11:26.027Z vite:load 34.34ms [plugin] /node_modules/.vite/deps/react-dom_client.js?v=a9ce1768
+2025-02-14T21:11:26.028Z vite:resolve 0.82ms ./chunk-XPR23Y44.js -> /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/chunk-XPR23Y44.js?v=a9ce1768
+2025-02-14T21:11:26.029Z vite:optimize-deps load /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/.vite/deps/chunk-XPR23Y44.js
+2025-02-14T21:11:26.029Z vite:import-analysis 2.11ms [2 imports rewritten] node_modules/.vite/deps/react-dom_client.js?v=a9ce1768
+2025-02-14T21:11:26.029Z vite:transform 2.18ms /node_modules/.vite/deps/react-dom_client.js?v=a9ce1768
+2025-02-14T21:11:26.029Z vite:load 36.63ms [plugin] /node_modules/.vite/deps/react_jsx-dev-runtime.js?v=a9ce1768
+2025-02-14T21:11:26.030Z vite:import-analysis 0.60ms [1 imports rewritten] node_modules/.vite/deps/react_jsx-dev-runtime.js?v=a9ce1768
+2025-02-14T21:11:26.030Z vite:transform 1.03ms /node_modules/.vite/deps/react_jsx-dev-runtime.js?v=a9ce1768
+2025-02-14T21:11:26.030Z vite:load 38.03ms [fs] /src/index.css
+2025-02-14T21:11:26.031Z vite:hmr [self-accepts] src/index.css
+2025-02-14T21:11:26.031Z vite:import-analysis 0.16ms [0 imports rewritten] src/index.css
+2025-02-14T21:11:26.031Z vite:transform 0.78ms /src/index.css
+2025-02-14T21:11:26.035Z vite:load 8.91ms [plugin] /node_modules/.vite/deps/react_jsx-runtime.js?v=a9ce1768
+2025-02-14T21:11:26.036Z vite:import-analysis 0.50ms [1 imports rewritten] node_modules/.vite/deps/react_jsx-runtime.js?v=a9ce1768
+2025-02-14T21:11:26.036Z vite:transform 0.98ms /node_modules/.vite/deps/react_jsx-runtime.js?v=a9ce1768
+2025-02-14T21:11:26.036Z vite:load 37.62ms [plugin] /node_modules/.vite/deps/chunk-I4MZPW7S.js?v=a9ce1768
+2025-02-14T21:11:26.037Z vite:import-analysis 0.49ms [no imports] node_modules/.vite/deps/chunk-I4MZPW7S.js?v=a9ce1768
+2025-02-14T21:11:26.037Z vite:transform 0.82ms /node_modules/.vite/deps/chunk-I4MZPW7S.js?v=a9ce1768
+2025-02-14T21:11:26.038Z vite:load 11.72ms [plugin] /node_modules/.vite/deps/@heroicons_react_24_outline.js?v=a9ce1768
+2025-02-14T21:11:26.042Z vite:cache [memory] /node_modules/.vite/deps/chunk-I4MZPW7S.js?v=a9ce1768
+2025-02-14T21:11:26.042Z vite:import-analysis 2.09ms [1 imports rewritten] node_modules/.vite/deps/@heroicons_react_24_outline.js?v=a9ce1768
+2025-02-14T21:11:26.042Z vite:transform 4.17ms /node_modules/.vite/deps/@heroicons_react_24_outline.js?v=a9ce1768
+2025-02-14T21:11:26.043Z vite:load 14.43ms [plugin] /node_modules/.vite/deps/chunk-XPR23Y44.js?v=a9ce1768
+2025-02-14T21:11:26.079Z vite:cache [memory] /node_modules/.vite/deps/chunk-I4MZPW7S.js?v=a9ce1768
+2025-02-14T21:11:26.079Z vite:import-analysis 10.73ms [1 imports rewritten] node_modules/.vite/deps/chunk-XPR23Y44.js?v=a9ce1768
+2025-02-14T21:11:26.079Z vite:transform 35.31ms /node_modules/.vite/deps/chunk-XPR23Y44.js?v=a9ce1768
+2025-02-14T21:11:26.082Z vite:import-analysis 0.26ms [0 imports rewritten] /@react-refresh
+2025-02-14T21:11:26.082Z vite:transform 55.77ms /@react-refresh
+2025-02-14T21:11:26.142Z vite:html-fallback Rewriting GET / to /index.html
+2025-02-14T21:11:26.146Z vite:cache [memory] /src/main.tsx
+2025-02-14T21:11:26.146Z vite:import-analysis [skipped] index.html?html-proxy&direct&index=0.css
+2025-02-14T21:11:26.147Z vite:time 4.64ms /index.html
+2025-02-14T21:11:26.155Z vite:html-fallback Rewriting GET / to /index.html
+2025-02-14T21:11:26.157Z vite:cache [memory] /src/main.tsx
+2025-02-14T21:11:26.157Z vite:import-analysis [skipped] index.html?html-proxy&direct&index=0.css
+2025-02-14T21:11:26.157Z vite:time 2.50ms /index.html
+2025-02-14T21:11:26.190Z vite:resolve 0.30ms /@vite/client -> /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/vite/dist/client/client.mjs
+2025-02-14T21:11:26.190Z vite:cache [304] /src/main.tsx
+2025-02-14T21:11:26.190Z vite:time 0.08ms /src/main.tsx
+2025-02-14T21:11:26.191Z vite:load 0.95ms [fs] /@vite/client
+2025-02-14T21:11:26.191Z vite:resolve 0.07ms @vite/env -> /Users/thomasfry/Desktop/code/Book translator/frontend/node_modules/vite/dist/client/env.mjs
+2025-02-14T21:11:26.192Z vite:import-analysis 0.44ms [1 imports rewritten] node_modules/vite/dist/client/client.mjs
+2025-02-14T21:11:26.192Z vite:transform 0.71ms /@vite/client
+2025-02-14T21:11:26.196Z vite:time 7.16ms /@vite/client
+2025-02-14T21:11:26.197Z vite:load 5.47ms [fs] /node_modules/vite/dist/client/env.mjs
+2025-02-14T21:11:26.197Z vite:import-analysis 0.02ms [no imports] node_modules/vite/dist/client/env.mjs
+2025-02-14T21:11:26.197Z vite:transform 0.12ms /node_modules/vite/dist/client/env.mjs
+2025-02-14T21:11:26.207Z vite:cache [304] /@react-refresh
+2025-02-14T21:11:26.207Z vite:time 0.13ms /@react-refresh
+2025-02-14T21:11:26.210Z vite:cache [304] /src/main.tsx
+2025-02-14T21:11:26.210Z vite:time 0.11ms /src/main.tsx
+2025-02-14T21:11:26.212Z vite:cache [304] /@react-refresh
+2025-02-14T21:11:26.212Z vite:time 0.12ms /@react-refresh
+2025-02-14T21:11:26.213Z vite:cache [memory] /@vite/client
+2025-02-14T21:11:26.213Z vite:time 0.20ms /@vite/client
+2025-02-14T21:11:26.223Z vite:cache [304] /src/App.js
+2025-02-14T21:11:26.223Z vite:time 0.12ms /src/App.js
+2025-02-14T21:11:26.224Z vite:cache [304] /src/index.css
+2025-02-14T21:11:26.224Z vite:time 0.11ms /src/index.css
+2025-02-14T21:11:26.224Z vite:cache [304] /node_modules/vite/dist/client/env.mjs
+2025-02-14T21:11:26.224Z vite:time 0.02ms /node_modules/vite/dist/client/env.mjs
+2025-02-14T21:11:26.231Z vite:cache [304] /src/App.js
+2025-02-14T21:11:26.231Z vite:time 0.12ms /src/App.js
+2025-02-14T21:11:26.232Z vite:cache [304] /src/index.css
+2025-02-14T21:11:26.232Z vite:time 0.17ms /src/index.css
+2025-02-14T21:11:26.244Z vite:cache [304] /node_modules/vite/dist/client/env.mjs
+2025-02-14T21:11:26.244Z vite:time 0.13ms /node_modules/vite/dist/client/env.mjs
+2025-02-14T21:11:26.294Z vite:proxy /api/models -> http://localhost:3002
+2025-02-14T21:11:26.295Z vite:proxy /api/models -> http://localhost:3002
+2025-02-14T21:11:26.302Z vite:time 7.94ms /models
+2025-02-14T21:11:26.303Z vite:time 7.42ms /models
+2025-02-14T21:11:26.404Z vite:proxy /api/models -> http://localhost:3002
+2025-02-14T21:11:26.405Z vite:proxy /api/models -> http://localhost:3002
+2025-02-14T21:11:26.406Z vite:time 2.25ms /models
+2025-02-14T21:11:26.407Z vite:time 2.46ms /models
+2025-02-14T21:11:26.429Z vite:resolve 0.34ms /installHook.js -> null
+2025-02-14T21:11:26.430Z vite:html-fallback Rewriting GET /installHook.js.map to /index.html
+2025-02-14T21:11:26.431Z vite:time 2.14ms /node_modules/.vite/deps/chunk-I4MZPW7S.js.map
+2025-02-14T21:11:26.432Z vite:cache [memory] /src/main.tsx
+2025-02-14T21:11:26.432Z vite:import-analysis [skipped] index.html?html-proxy&direct&index=0.css
+2025-02-14T21:11:26.432Z vite:time 3.55ms /index.html
+2025-02-14T21:11:26.433Z vite:time 3.82ms /node_modules/.vite/deps/react-dom_client.js.map
+2025-02-14T21:11:26.446Z vite:time 17.75ms /node_modules/.vite/deps/chunk-XPR23Y44.js.map
+2025-02-14T21:11:53.358Z vite:html-fallback Rewriting GET /installHook.js.map to /index.html
+2025-02-14T21:11:53.361Z vite:cache [memory] /src/main.tsx
+2025-02-14T21:11:53.361Z vite:import-analysis [skipped] index.html?html-proxy&direct&index=0.css
+2025-02-14T21:11:53.362Z vite:time 4.92ms /index.html

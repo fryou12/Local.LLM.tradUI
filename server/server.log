@@ -1,0 +1,91 @@
+
+> pdf-translator-server@1.0.0 dev
+> ts-node-dev --respawn --transpile-only src/index.ts
+
+[INFO] 22:10:57 ts-node-dev ver. 2.0.0 (using ts-node ver. 10.9.2, typescript ver. 5.7.3)
+Fri, 14 Feb 2025 21:10:57 GMT express:router:route new '/models'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/models'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:route get '/models'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:route new '/translate'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/translate'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:route post '/translate'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:route post '/translate'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:route new '/translation-progress/:fileId'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/translation-progress/:fileId'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:route get '/translation-progress/:fileId'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/'
+Fri, 14 Feb 2025 21:10:57 GMT express:application set "x-powered-by" to true
+Fri, 14 Feb 2025 21:10:57 GMT express:application set "etag" to 'weak'
+Fri, 14 Feb 2025 21:10:57 GMT express:application set "etag fn" to [Function: generateETag]
+Fri, 14 Feb 2025 21:10:57 GMT express:application set "env" to 'development'
+Fri, 14 Feb 2025 21:10:57 GMT express:application set "query parser" to 'extended'
+Fri, 14 Feb 2025 21:10:57 GMT express:application set "query parser fn" to [Function: parseExtendedQueryString]
+Fri, 14 Feb 2025 21:10:57 GMT express:application set "subdomain offset" to 2
+Fri, 14 Feb 2025 21:10:57 GMT express:application set "trust proxy" to false
+Fri, 14 Feb 2025 21:10:57 GMT express:application set "trust proxy fn" to [Function: trustNone]
+Fri, 14 Feb 2025 21:10:57 GMT express:application booting in development mode
+Fri, 14 Feb 2025 21:10:57 GMT express:application set "view" to [Function: View]
+Fri, 14 Feb 2025 21:10:57 GMT express:application set "views" to '/Users/thomasfry/Desktop/code/Book translator/server/views'
+Fri, 14 Feb 2025 21:10:57 GMT express:application set "jsonp callback name" to 'callback'
+Fri, 14 Feb 2025 21:10:57 GMT express:router use '/' query
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/'
+Fri, 14 Feb 2025 21:10:57 GMT express:router use '/' expressInit
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/'
+Fri, 14 Feb 2025 21:10:57 GMT express:router use '/' corsMiddleware
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/'
+Fri, 14 Feb 2025 21:10:57 GMT express:router use '/' jsonParser
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/'
+Fri, 14 Feb 2025 21:10:57 GMT express:router use '/' urlencodedParser
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/'
+Fri, 14 Feb 2025 21:10:57 GMT express:router use '/' <anonymous>
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/'
+Fri, 14 Feb 2025 21:10:57 GMT express:router use '/api' router
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/api'
+Fri, 14 Feb 2025 21:10:57 GMT express:router use '/api' router
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/api'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:route new '/api/health'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/api/health'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:route get '/api/health'
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/'
+Fri, 14 Feb 2025 21:10:57 GMT express:router use '/' <anonymous>
+Fri, 14 Feb 2025 21:10:57 GMT express:router:layer new '/'
+2025-02-14T21:10:57.229Z - Serveur démarré sur le port 3002
+Fri, 14 Feb 2025 21:11:26 GMT express:router dispatching GET /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router query  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router expressInit  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router corsMiddleware  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router jsonParser  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router urlencodedParser  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router <anonymous>  : /models
+2025-02-14T21:11:26.299Z - GET /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router <anonymous>  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router dispatching GET /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router query  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router expressInit  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router corsMiddleware  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router jsonParser  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router urlencodedParser  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router <anonymous>  : /models
+2025-02-14T21:11:26.302Z - GET /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router <anonymous>  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router dispatching GET /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router query  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router expressInit  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router corsMiddleware  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router jsonParser  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router urlencodedParser  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router <anonymous>  : /models
+2025-02-14T21:11:26.406Z - GET /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router <anonymous>  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router dispatching GET /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router query  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router expressInit  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router corsMiddleware  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router jsonParser  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router urlencodedParser  : /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router <anonymous>  : /models
+2025-02-14T21:11:26.406Z - GET /models
+Fri, 14 Feb 2025 21:11:26 GMT express:router <anonymous>  : /models
