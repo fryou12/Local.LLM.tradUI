@@ -10,7 +10,7 @@ export interface OCRResult {
   pageNumber: number;
 }
 
-interface TextChunk {
+export interface OCRTextChunk {
   text: string;
   pageNumber: number;
   chunkNumber: number;
@@ -25,12 +25,13 @@ export class OCRProcessor {
 
   private async extractTextFromPDF(filePath: string, isOCRMode: boolean): Promise<OCRResult[]> {
     try {
-      debugLog('=== Démarrage extraction PDF avec OCR ===');
       const pdfBuffer = await readFile(filePath);
       
       if (isOCRMode) {
+        debugLog('=== Démarrage extraction PDF avec OCR ===');
         return this.performOCR(pdfBuffer);
       } else {
+        debugLog('=== Démarrage extraction PDF directe (sans OCR) ===');
         return this.extractTextWithPDFJS(pdfBuffer);
       }
     } catch (error) {
@@ -127,7 +128,7 @@ export class OCRProcessor {
     return results;
   }
 
-  async extractText(filePath: string, isOCRMode: boolean = false): Promise<TextChunk[]> {
+  async extractText(filePath: string, isOCRMode: boolean = false): Promise<OCRTextChunk[]> {
     const fileExt = extname(filePath).toLowerCase();
     const defaultConfig = MODEL_CONFIGS['mistral:latest'];
     
@@ -157,7 +158,7 @@ export class OCRProcessor {
     }
   }
 
-  private processResults(results: OCRResult[], config: any): TextChunk[] {
+  private processResults(results: OCRResult[], config: any): OCRTextChunk[] {
     return results.flatMap(result => 
       this.splitTextIntoChunks(
         result.text,
@@ -170,8 +171,8 @@ export class OCRProcessor {
     );
   }
 
-  private splitTextIntoChunks(text: string, chunkSize: number, overlapPercentage: number): TextChunk[] {
-    const chunks: TextChunk[] = [];
+  private splitTextIntoChunks(text: string, chunkSize: number, overlapPercentage: number): OCRTextChunk[] {
+    const chunks: OCRTextChunk[] = [];
     const words = text.split(/\s+/);
     const overlap = Math.floor(chunkSize * (overlapPercentage / 100));
     let currentChunk = '';

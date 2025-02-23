@@ -5,6 +5,11 @@ import { EventEmitter } from 'events';
 import { getModelConfig, ModelConfig } from '../services/models';
 import { TextSegmenter, TextSegment, SegmentationConfig } from './text-segmenter';
 
+interface AbortError {
+  name: 'AbortError';
+  message: string;
+}
+
 export interface TranslationResult {
   originalText: string;
   translatedText: string;
@@ -29,6 +34,8 @@ export class TranslationEngine {
   private readonly circuitBreaker: CircuitBreaker;
   private readonly eventEmitter: EventEmitter;
   private config: ModelConfig;
+  private readonly RETRY_DELAY = 1000;
+  private readonly MAX_RETRIES = 3;
 
   constructor(config: ModelConfig) {
     this.config = config;
@@ -64,7 +71,7 @@ export class TranslationEngine {
         const timeout = this.getModelTimeout(model);
         return await this.ollamaRequest(model, prompt, timeout); // 2 minutes timeout for initial request
       } catch (error) {
-        if (error.name === 'AbortError') {
+        if (error instanceof Error && error.name === 'AbortError') {
           // Progressive shortening strategy
           const shortenedPrompt = this.shortenPrompt(prompt);
           const retryTimeout = Math.floor(this.getModelTimeout(model) * 0.6); // 60% du timeout initial
@@ -158,73 +165,51 @@ export class TranslationEngine {
   }
 
   private buildPrompt(text: string, targetLanguage: string): string {
-    return `Translate the following text to ${targetLanguage}. Keep the original formatting, line breaks, and paragraph structure. Only output the translated text without any additional comments or explanations:
-
-${text}`;
+    // Utiliser le code de langue directement
+    return `You are a professional translator. Translate the following text to ${targetLanguage}. Maintain the original formatting, style, and tone. Here's the text to translate:\n\n${text}`;
   }
 
-  private async verifyModel(model: string): Promise<boolean> {
+  private async verifyModel(modelName: string): Promise<boolean> {
     try {
       const response = await fetch('http://localhost:11434/api/tags');
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json() as { models: Array<{ name: string }> };
       
-      const data = await response.json();
       if (!data.models || !Array.isArray(data.models)) {
-        throw new Error('Invalid models response format');
+        return false;
       }
       
-      return data.models.some((m: any) => m.name === model);
-    } catch (error) {
-      debugLog('Model verification failed', error);
-      return false;
+      return data.models.some((m) => m.name === modelName);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return false;
+      }
+      debugLog('Error verifying model:', error);
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
-  async translateText(text: string, modelName: string, targetLanguage: string): Promise<string> {
-    // Verify model availability
-    const modelAvailable = await this.verifyModel(modelName);
-    if (!modelAvailable) {
-      throw new Error(`Model ${modelName} not found`);
-    }
-
-    const segmenter = new TextSegmenter(this.config, modelName);
-    const segments = segmenter.segmentText(text);
-    debugLog('Text segmented', { totalSegments: segments.length });
-
-    const translations: string[] = [];
-    
-    for (let i = 0; i < segments.length; i++) {
-      const segment = segments[i];
-      try {
-        const prompt = this.buildPrompt(segment.text, targetLanguage);
-        const timeout = this.getModelTimeout(modelName);
-        const translation = await this.ollamaRequest(modelName, prompt, timeout);
-        translations.push(translation);
-      } catch (error) {
-        debugLog('Segment translation failed', { segmentNumber: i, error });
-        // Retry avec un timeout plus court
-        try {
-          const shortenedPrompt = this.shortenPrompt(segment.text);
-          const retryTimeout = Math.floor(this.getModelTimeout(modelName) * 0.6); // 60% du timeout initial
-          const translation = await this.ollamaRequest(modelName, this.buildPrompt(shortenedPrompt, targetLanguage), retryTimeout);
-          translations.push(translation);
-        } catch (retryError) {
-          debugLog('Retry translation failed', { segmentNumber: i, error: retryError });
-          translations.push(segment.text); // Keep original text on failure
-        }
+  public async translateText(text: string, modelName: string, targetLanguage: string): Promise<string> {
+    try {
+      const modelAvailable = await this.verifyModel(modelName);
+      if (!modelAvailable) {
+        throw new Error(`Model ${modelName} not found`);
       }
-    }
 
-    return translations.join('\n');
+      const prompt = this.buildPrompt(text, targetLanguage);
+      return await this.translateWithRetry(modelName, prompt);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Translation request was aborted');
+      }
+      throw error instanceof Error ? error : new Error(String(error));
+    }
   }
 
   async translate(text: string, targetLang: string, model: string): Promise<TranslationResult> {
-    const prompt = `Translate the following text to ${targetLang}. Preserve all formatting and maintain the exact same style:
-
-${text}
-
-Translation:`;
-
+    const normalizedLanguage = this.normalizeLanguageCode(targetLang);
+    
+    const prompt = `You are a professional translator. Translate the following text to ${normalizedLanguage}. Maintain the original formatting, style, and tone. Here's the text to translate:\n\n${text}`;
+    
     try {
       const translatedText = await this.translateWithRetry(model, prompt);
       if (typeof translatedText !== 'string') {
@@ -251,15 +236,68 @@ Translation:`;
     return results;
   }
 
-  private async translateWithRetry(model: string, prompt: string, retries = 3): Promise<string> {
-    try {
-      return await this.circuitBreaker.fire(model, prompt);
-    } catch (error) {
-      if (retries > 0) {
-        await new Promise(resolve => setTimeout(resolve, 2000));  // Wait 2s between retries
-        return this.translateWithRetry(model, prompt, retries - 1);
-      }
-      throw error;
+  private async handleError(error: unknown): Promise<never> {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Translation request was aborted');
     }
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+
+  private async translateWithRetry(model: string, prompt: string, retries = 3): Promise<string> {
+    let lastError: Error | null = null;
+    
+    for (let i = 0; i < retries; i++) {
+      try {
+        const result = await this.circuitBreaker.fire(model, prompt) as string;
+        return result;
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          debugLog('Request aborted by user');
+          break;
+        }
+        
+        lastError = error instanceof Error ? error : new Error(String(error));
+        debugLog(`Attempt ${i + 1}/${retries} failed:`, lastError.message);
+        
+        if (i < retries - 1) {
+          await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
+        }
+      }
+    }
+    
+    throw lastError || new Error('Translation failed after all retries');
+  }
+
+  private LANGUAGE_CODES: { [key: string]: string } = {
+    'fr': 'French',
+    'en': 'English',
+    'es': 'Spanish',
+    'de': 'German',
+    'it': 'Italian',
+    'pt': 'Portuguese',
+    'nl': 'Dutch',
+    'ru': 'Russian',
+    'zh': 'Chinese',
+    'ja': 'Japanese',
+    'ko': 'Korean'
+  };
+
+  private normalizeLanguageCode(lang: string): string {
+    // Si c'est déjà un code de langue court, le retourner tel quel
+    if (Object.keys(this.LANGUAGE_CODES).includes(lang.toLowerCase())) {
+      return lang.toLowerCase();
+    }
+    
+    // Si c'est un nom de langue complet, trouver le code correspondant
+    const code = Object.entries(this.LANGUAGE_CODES).find(
+      ([_, name]) => name.toLowerCase() === lang.toLowerCase()
+    )?.[0];
+    
+    if (code) {
+      return code;
+    }
+    
+    // Par défaut, retourner la langue telle quelle
+    return lang.toLowerCase();
   }
 }

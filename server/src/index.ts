@@ -1,60 +1,84 @@
 import express from 'express';
 import cors from 'cors';
-import { debugLog, errorLog } from './utils/logger';
-import modelsRouter from './routes/models';
+import multer from 'multer';
+import path from 'path';
+import { modelsRouter } from './routes/models';
+import extractRouter from './routes/extract';
 import translateRouter from './routes/translate';
+import { modelManager } from './services/model-loader';
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '3002', 10);
+const port = process.env.PORT || 3001;
+
+// Configuration de multer pour le stockage des fichiers
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Ensure required directories exist
+const dirs = ['translations', 'uploads', 'models'];
+dirs.forEach(dir => {
+  const dirPath = path.join(__dirname, '..', dir);
+  if (!require('fs').existsSync(dirPath)) {
+    require('fs').mkdirSync(dirPath, { recursive: true });
+    console.log(`Created directory: ${dirPath}`);
+  }
+});
+
+// Initialize model manager
+modelManager.initialize().catch(err => {
+  console.error('Failed to initialize model manager:', err);
+});
 
 // Serve static files
-app.use('/translations', express.static('translations'));
-app.use('/uploads', express.static('uploads'));
+app.use('/translations', express.static(path.join(__dirname, '../translations')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Logging middleware
 app.use((req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - ${duration}ms`);
-  });
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
 });
 
 // Routes
-app.use('/api/models', modelsRouter);
-app.use('/api/translate', translateRouter);
+app.use('/api', modelsRouter);
+app.use('/api', extractRouter);
+app.use('/api', translateRouter);
 
-// Route de test
-app.get('/api/health', (_req, res) => {
+// Health check route
+app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  errorLog('Error:', err);
+  console.error('Error:', err);
   res.status(500).json({
-    error: err.message || 'Internal Server Error',
-    timestamp: new Date().toISOString()
+    error: 'Une erreur est survenue',
+    details: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 
-// Démarrage du serveur
-const server = app.listen(PORT, () => {
-  debugLog(`Serveur démarré sur le port ${PORT}`);
-});
-
-// Handle server errors
-server.on('error', (error: NodeJS.ErrnoException) => {
-  if (error.code === 'EADDRINUSE') {
-    console.error(`Le port ${PORT} est déjà utilisé. Tentative avec le port ${PORT + 1}`);
-    server.listen(PORT + 1);
-  } else {
-    console.error('Erreur du serveur:', error);
-  }
+// Start server
+app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
+  console.log('Environment:', process.env.NODE_ENV || 'development');
+  console.log('CORS origins:', ['http://localhost:5173', 'http://127.0.0.1:5173']);
+  
+  // Log available routes
+  console.log('\nAvailable routes:');
+  app._router.stack.forEach((r: any) => {
+    if (r.route && r.route.path) {
+      console.log(`${Object.keys(r.route.methods).join(',')} ${r.route.path}`);
+    }
+  });
 });

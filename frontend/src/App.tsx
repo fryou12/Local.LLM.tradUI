@@ -1,33 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DocumentArrowUpIcon,
   LanguageIcon,
-  CpuChipIcon,
-  ArrowPathIcon,
-  DocumentMagnifyingGlassIcon
+  CpuChipIcon
 } from '@heroicons/react/24/outline';
+import './App.css';
 
 interface Model {
+  id: string;
   name: string;
-  model: string;
-  modified_at: string;
   size: number;
-  digest: string;
-  details: {
-    parent_model: string;
-    format: string;
-    family: string;
-    families: string[];
-    parameter_size: string;
-    quantization_level: string;
-  };
+  maxTokens: number;
+  context: number;
+  optimalChunkSize: number;
+  overlapPercentage: number;
+  avgCharsPerToken: number;
+  description: string;
   capabilities: string[];
-}
-
-interface ModelsResponse {
-  models: Model[];
-  count: number;
-  timestamp: string;
 }
 
 interface TranslationMode {
@@ -35,95 +24,64 @@ interface TranslationMode {
   label: string;
 }
 
-interface TranslationProgress {
-  status: 'idle' | 'preparing' | 'translating' | 'reassembling' | 'completed' | 'error';
-  progress: number;
-  currentSegment?: number;
-  totalSegments?: number;
-  currentPage?: number;
-  totalPages?: number;
-  estimatedTimeRemaining?: number;
-  error?: string;
-}
-
-// Modes de traduction prédéfinis
 const TRANSLATION_MODES: TranslationMode[] = [
   { value: 'text', label: 'Texte uniquement' },
   { value: 'ocr', label: 'OCR' }
 ];
 
+const TARGET_LANGUAGES = [
+  { value: 'fr', label: 'Français' },
+  { value: 'en', label: 'Anglais' },
+  { value: 'es', label: 'Espagnol' },
+  { value: 'it', label: 'Italien' },
+  { value: 'de', label: 'Allemand' }
+];
+
+const OUTPUT_FORMATS = [
+  { value: 'txt', label: 'Texte (.txt)' },
+  { value: 'pdf', label: 'PDF (.pdf)' }
+];
+
 export default function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [sourceText, setSourceText] = useState('');
   const [targetLanguage, setTargetLanguage] = useState('fr');
-  const [selectedModel, setSelectedModel] = useState<string>('llama3:70b');
+  const [selectedModel, setSelectedModel] = useState<string>('');
   const [translating, setTranslating] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [translationProgress, setTranslationProgress] = useState<TranslationProgress>({
-    status: 'idle',
-    progress: 0
-  });
   const [translationMode, setTranslationMode] = useState<string>(TRANSLATION_MODES[0].value);
   const [availableModels, setAvailableModels] = useState<Model[]>([]);
-  const [isLoadingModels, setIsLoadingModels] = useState<boolean>(true);
-  const [modelError, setModelError] = useState<string | null>(null);
+  const [modelsError, setModelsError] = useState<string | null>(null);
   const [translationError, setTranslationError] = useState<string | null>(null);
+  const [outputFormat, setOutputFormat] = useState<'txt' | 'pdf'>('txt');
+  const [translationStream, setTranslationStream] = useState('');
 
   const isOCRAvailable = selectedFile && selectedFile.name.toLowerCase().endsWith('.pdf');
 
   useEffect(() => {
-    // Reset translation mode to 'text' if OCR is not available
     if (!isOCRAvailable && translationMode === 'ocr') {
       setTranslationMode('text');
     }
-  }, [selectedFile]);
+  }, [selectedFile, isOCRAvailable, translationMode]);
 
-  // Fonction pour charger les modèles depuis l'API
   const fetchModels = async () => {
     try {
-      setIsLoadingModels(true);
-      setModelError(null);
-      
-      console.log('1. Envoi de la requête GET /api/models...');
       const response = await fetch('/api/models');
-      console.log('2. Réponse reçue:', response.status);
-      
       if (!response.ok) {
         throw new Error(`Erreur HTTP ${response.status}`);
       }
 
-      const data = await response.json() as ModelsResponse;
-      console.log('3. Données reçues:', JSON.stringify(data, null, 2));
-
-      if (!data || typeof data !== 'object') {
-        throw new Error('Réponse invalide: pas un objet');
+      const data = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error('Format de réponse invalide');
       }
 
-      if (!Array.isArray(data.models)) {
-        throw new Error('Réponse invalide: models n\'est pas un tableau');
+      setAvailableModels(data);
+      if (data.length > 0) {
+        setSelectedModel(data[0].id);
       }
-
-      // Vérifie que chaque modèle a les propriétés requises
-      const validModels = data.models.every((model: Model) => 
-        model.name && 
-        model.model && 
-        model.modified_at && 
-        typeof model.size === 'number' &&
-        model.digest &&
-        model.details &&
-        Array.isArray(model.capabilities)
-      );
-
-      if (!validModels) {
-        throw new Error('Réponse invalide: format de modèle incorrect');
-      }
-
-      setAvailableModels(data.models);
-      setIsLoadingModels(false);
-      
     } catch (error) {
       console.error('Erreur lors du chargement des modèles:', error);
-      setModelError(error instanceof Error ? error.message : 'Erreur inconnue');
-      setIsLoadingModels(false);
+      setModelsError('Impossible de charger les modèles. Veuillez réessayer plus tard.');
     }
   };
 
@@ -131,41 +89,62 @@ export default function App() {
     fetchModels();
   }, []);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      if (file.type === 'application/pdf') {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch('/api/extract-text', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          setSourceText(data.text);
+          setSelectedFile(file);
+        } else {
+          throw new Error(data.error || 'Erreur lors de l\'extraction du texte');
+        }
+      } else {
+        const text = await file.text();
+        setSourceText(text);
+        setSelectedFile(file);
+      }
+      setTranslationError(null);
+    } catch (error) {
+      console.error('Erreur lors de la lecture du fichier:', error);
+      setTranslationError(
+        error instanceof Error ? error.message : 'Erreur lors de la lecture du fichier'
+      );
     }
   };
 
-  const handleTranslationModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newMode = e.target.value;
-    setTranslationMode(newMode);
-  };
-
   const handleTranslate = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !selectedModel) {
+      setTranslationError('Veuillez sélectionner un fichier et un modèle');
+      return;
+    }
 
     try {
       setTranslating(true);
-      setTranslationProgress({ status: 'preparing', progress: 0 });
+      setTranslationStream('');
+      setTranslationError(null);
       
-      // Ensure file has correct extension
       const formData = new FormData();
-      const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase() || '';
-      if (!['txt', 'pdf'].includes(fileExtension)) {
-        throw new Error(`Format de fichier non supporté: .${fileExtension}. Formats acceptés: .txt, .pdf`);
-      }
-      
-      // Create a new file with original name to preserve extension
-      const renamedFile = new File([selectedFile], selectedFile.name, {
-        type: selectedFile.type
-      });
-      
-      formData.append('file', renamedFile);
+      formData.append('file', selectedFile);
       formData.append('selectedModel', selectedModel);
       formData.append('targetLanguage', targetLanguage);
-      formData.append('useOCR', (translationMode === 'ocr').toString());
+      formData.append('useOCR', String(translationMode === 'ocr'));
+      formData.append('outputFormat', outputFormat);
 
       const response = await fetch('/api/translate', {
         method: 'POST',
@@ -173,254 +152,267 @@ export default function App() {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+        throw new Error('Erreur lors de la traduction');
       }
 
-      const data = await response.json();
-      setSessionId(data.sessionId);
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Impossible de lire la réponse');
+      }
 
-      // Démarrer la vérification de progression
-      checkTranslationProgress(data.sessionId);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-    } catch (error: any) {
-      console.error('Translation failed:', error);
-      setTranslationError(error instanceof Error ? error.message : 'Unknown error');
-      setTranslationProgress({ status: 'error', progress: 0 });
-      setSessionId(null);
+        const text = new TextDecoder().decode(value);
+        setTranslationStream(prev => {
+          const newText = prev + text;
+          const container = document.querySelector('.translation-content.target');
+          if (container && 
+            container.scrollTop > container.scrollHeight - container.clientHeight - 100) {
+            setTimeout(() => {
+              container.scrollTop = container.scrollHeight;
+            }, 0);
+          }
+          return newText;
+        });
+      }
+    } catch (error) {
+      console.error('Erreur de traduction:', error);
+      setTranslationError(
+        error instanceof Error ? error.message : 'Erreur lors de la traduction'
+      );
     } finally {
       setTranslating(false);
     }
   };
 
-  const checkTranslationProgress = async (sessionId: string) => {
-    try {
-      const response = await fetch(`/api/translate/progress/${sessionId}`);
-      const data = await response.json();
-      
-      setTranslationProgress({
-        ...translationProgress,
-        ...data,
-        progress: typeof data.progress === 'number' ? data.progress : 0
-      });
-
-      if (data.status === 'completed' && data.outputFile) {
-        // Download the translated file using the correct path
-        const downloadUrl = `http://localhost:3002${data.outputFile}`;
-        window.location.href = downloadUrl;
-        
-        // Clear the translation session
-        await fetch(`/api/translate/session/${sessionId}`, { method: 'DELETE' });
-        setTranslationProgress({
-          status: 'idle',
-          progress: 0
-        });
-      } else if (data.status !== 'error') {
-        // Continue polling if not completed or error
-        setTimeout(() => checkTranslationProgress(sessionId), 1000);
-      }
-    } catch (error) {
-      console.error('Error checking translation progress:', error);
-      setTranslationProgress({
-        ...translationProgress,
-        status: 'error',
-        error: 'Error checking translation progress'
-      });
+  const getModelSize = (model: Model): number => {
+    // Pour les modèles MOE
+    if (model.id.includes('MOE')) {
+      const moeMatch = model.id.match(/(\d+\.?\d*)B/);
+      return moeMatch ? parseFloat(moeMatch[1]) : 0;
     }
+
+    // Pour les modèles standards
+    const paramMatch = model.id.match(/[:/](\d+\.?\d*)b/i);
+    if (paramMatch) {
+      return parseFloat(paramMatch[1]);
+    }
+
+    // Pour les modèles avec tag "latest"
+    const defaultSizes: { [key: string]: number } = {
+      'llama2': 7,
+      'llava': 7,
+      'mistral': 7,
+    };
+    const modelBase = model.name.toLowerCase();
+    return defaultSizes[modelBase] || 0;
   };
 
-  useEffect(() => {
-    // Cleanup function for the interval
-    return () => {
-      // Clean up session if it exists
-      if (sessionId) {
-        fetch(`/api/translate/session/${sessionId}`, {
-          method: 'DELETE'
-        }).catch(console.error);
-        setSessionId(null);
-      }
-    };
-  }, [sessionId]);
+  const getModelFamily = (model: Model): string => {
+    const name = model.name.toLowerCase();
+    if (name.includes('llama3')) return 'llama3';
+    if (name.includes('llama2')) return 'llama2';
+    if (name.includes('llava')) return 'llava';
+    if (name.includes('mistral')) return 'mistral';
+    if (name.includes('qwen')) return 'qwen';
+    if (name.includes('deepseek')) return 'deepseek';
+    if (name.includes('moe')) return 'moe';
+    return 'other';
+  };
 
-  const renderProgress = () => {
-    if (translationProgress.status === 'idle') return null;
+  const sortModels = (models: Model[]): Model[] => {
+    return [...models].sort((a, b) => {
+      // D'abord trier par famille
+      const familyA = getModelFamily(a);
+      const familyB = getModelFamily(b);
+      if (familyA !== familyB) return familyA.localeCompare(familyB);
+      
+      // Puis par taille
+      return getModelSize(b) - getModelSize(a);
+    });
+  };
 
-    const getStatusText = () => {
-      switch (translationProgress.status) {
-        case 'preparing':
-          return 'Préparation du document...';
-        case 'translating':
-          return `Traduction en cours (${translationProgress.currentSegment}/${translationProgress.totalSegments})`;
-        case 'reassembling':
-          return 'Réassemblage du document...';
-        case 'completed':
-          return 'Traduction terminée !';
-        case 'error':
-          return 'Erreur lors de la traduction';
-        default:
-          return 'En cours...';
-      }
-    };
+  const getModelDisplayName = (model: Model): string => {
+    // Extraire le nombre de paramètres du nom ou de l'ID
+    const paramMatch = model.id.match(/[:/](\d+\.?\d*)b/i);
+    const params = paramMatch ? paramMatch[1] : '';
+    
+    // Pour les modèles spéciaux comme MOE
+    if (model.id.includes('MOE')) {
+      const moeMatch = model.id.match(/(\d+\.?\d*)B/);
+      return `${model.name} (${moeMatch ? moeMatch[1] : ''}B params)`;
+    }
 
-    const getTimeRemaining = () => {
-      if (!translationProgress.estimatedTimeRemaining) return '';
-      const minutes = Math.floor(translationProgress.estimatedTimeRemaining / 60000);
-      const seconds = Math.floor((translationProgress.estimatedTimeRemaining % 60000) / 1000);
-      return `Temps restant estimé : ${minutes}m ${seconds}s`;
-    };
-
-    return (
-      <div className="progress-container">
-        <div className="progress-status">
-          <p>{getStatusText()}</p>
-          {translationProgress.status === 'translating' && (
-            <>
-              <p>Page {translationProgress.currentPage}/{translationProgress.totalPages}</p>
-              <p>{getTimeRemaining()}</p>
-            </>
-          )}
-        </div>
-        <div className="progress-bar">
-          <div 
-            className="progress-fill"
-            style={{ width: `${translationProgress.progress}%` }}
-          />
-        </div>
-      </div>
-    );
+    // Pour les modèles avec tag "latest"
+    if (model.id.includes(':latest')) {
+      const defaultSizes: { [key: string]: string } = {
+        'llama2': '7',
+        'llava': '7',
+        'mistral': '7',
+      };
+      const modelBase = model.name.toLowerCase();
+      const defaultSize = defaultSizes[modelBase];
+      return defaultSize ? `${model.name} (${defaultSize}B params)` : model.name;
+    }
+    
+    // Pour les modèles standards
+    return params ? `${model.name} (${params}B params)` : model.name;
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="card">
-        <div className="app-title">
-          <h1>Book Translator Pro</h1>
-          <p>Traduisez vos documents avec des models de langage locaux: Ollama</p>
-        </div>
-
-        <div className="section-group">
-          <div className="input-section">
-            {/* Section Fichier Source */}
-            <div>
-              <div className="label-container">
-                <DocumentArrowUpIcon className="w-6 h-6 text-primary" />
-                <span className="label-text">Fichier source</span>
-              </div>
-              <input
-                type="file"
-                accept=".pdf,.txt"
-                onChange={handleFileChange}
-                className="input-field text-center"
-              />
-            </div>
-
-            {/* Section Mode de traduction */}
-            <div>
-              <div className="label-container">
-                <DocumentMagnifyingGlassIcon className="w-6 h-6 text-primary" />
-                <span className="label-text">Mode de traduction</span>
-              </div>
-              <select
-                value={translationMode}
-                onChange={handleTranslationModeChange}
-                className="select-field text-center"
-                disabled={!isOCRAvailable && translationMode === 'ocr'}
-              >
-                {TRANSLATION_MODES.map((mode) => (
-                  <option key={mode.value} value={mode.value}>
-                    {mode.label}
-                  </option>
-                ))}
-              </select>
-              {!isOCRAvailable && (
-                <div className="text-yellow-500 text-sm mt-1">
-                  Le mode OCR n'est disponible que pour les fichiers PDF.
-                </div>
-              )}
-            </div>
-
-            {/* Section Langue cible */}
-            <div>
-              <div className="label-container">
-                <LanguageIcon className="w-6 h-6 text-primary" />
-                <span className="label-text">Langue cible</span>
-              </div>
-              <select
-                value={targetLanguage}
-                onChange={(e) => setTargetLanguage(e.target.value)}
-                className="select-field text-center"
-              >
-                <option value="fr">Français</option>
-                <option value="en">Anglais</option>
-                <option value="es">Espagnol</option>
-                <option value="de">Allemand</option>
-                <option value="it">Italien</option>
-              </select>
-            </div>
-
-            {/* Section Modèle AI pour la traduction (toujours visible) */}
-            <div>
-              <div className="label-container">
-                <CpuChipIcon className="w-6 h-6 text-primary" />
-                <span className="label-text">Modèle de traduction</span>
-              </div>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="select-field text-center"
-                disabled={isLoadingModels}
-              >
-                {availableModels.map((model) => (
-                  <option key={model.name} value={model.model}>
-                    {model.name} ({model.details.parameter_size})
-                  </option>
-                ))}
-              </select>
-              {modelError && (
-                <div className="error-message text-red-500 text-sm mt-1">
-                  {modelError}
-                </div>
-              )}
-              {!isLoadingModels && !modelError && availableModels.length === 0 && (
-                <div className="text-yellow-500 text-sm mt-1">
-                  Aucun modèle trouvé. Assurez-vous qu'Ollama est en cours d'exécution.
-                </div>
-              )}
-            </div>
+    <div>
+      <h1 className="app-title">L.L.M.Trad</h1>
+      
+      <div className="app-container">
+        <div className="config-panel">
+          <h2 className="panel-title">Configuration</h2>
+          
+          <div className="control-group">
+            <label className="control-label">
+              <DocumentArrowUpIcon className="icon" />
+              Fichier source
+            </label>
+            <input
+              type="file"
+              onChange={handleFileSelect}
+              accept=".txt,.pdf"
+              style={{ display: 'none' }}
+              id="file-input"
+            />
+            <button
+              onClick={() => document.getElementById('file-input')?.click()}
+              className="control-button"
+              disabled={translating}
+            >
+              Sélectionner
+            </button>
+            {selectedFile && (
+              <span className="selected-file">
+                {selectedFile.name}
+              </span>
+            )}
           </div>
-        </div>
 
-        <div className="translation-section">
-          <span className="translation-label">Lancer la traduction :</span>
-          <button 
-            className="btn-primary"
+          <div className="control-group">
+            <label className="control-label">
+              <CpuChipIcon className="icon" />
+              Mode de traduction
+            </label>
+            <select
+              value={translationMode}
+              onChange={(e) => setTranslationMode(e.target.value)}
+              className="control-select"
+              disabled={translating}
+            >
+              {TRANSLATION_MODES.map(mode => (
+                <option 
+                  key={mode.value} 
+                  value={mode.value}
+                  disabled={mode.value === 'ocr' && !isOCRAvailable}
+                >
+                  {mode.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="control-group">
+            <label className="control-label">
+              <LanguageIcon className="icon" />
+              Langue cible
+            </label>
+            <select
+              value={targetLanguage}
+              onChange={(e) => setTargetLanguage(e.target.value)}
+              className="control-select"
+              disabled={translating}
+            >
+              {TARGET_LANGUAGES.map(lang => (
+                <option key={lang.value} value={lang.value}>
+                  {lang.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="control-group">
+            <label className="control-label">
+              <CpuChipIcon className="icon" />
+              Sélection du modèle
+            </label>
+            <select
+              className="control-select"
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              disabled={!availableModels.length}
+            >
+              {sortModels(availableModels).map((model) => (
+                <option key={model.id} value={model.id}>
+                  {getModelDisplayName(model)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="control-group">
+            <label className="control-label">
+              Format de sortie
+            </label>
+            <select
+              value={outputFormat}
+              onChange={(e) => setOutputFormat(e.target.value as 'txt' | 'pdf')}
+              className="control-select"
+              disabled={translating}
+            >
+              {OUTPUT_FORMATS.map(format => (
+                <option key={format.value} value={format.value}>
+                  {format.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
             onClick={handleTranslate}
             disabled={!selectedFile || translating}
+            className="control-button translate-button"
           >
-            {translating ? (
-              <>
-                <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                Traduction en cours...
-              </>
-            ) : (
-              <>
-                <LanguageIcon className="w-5 h-5" />
-                Traduire
-              </>
-            )}
+            {translating ? 'Traduction en cours...' : 'Traduire'}
           </button>
         </div>
 
-        {selectedFile && (
-          <div className="file-status">
-            Fichier sélectionné : {selectedFile.name}
-          </div>
-        )}
+        <div className="translation-panel">
+          <h2 className="panel-title">Traduction</h2>
+          
+          <div className="translation-container">
+            <div className="translation-box">
+              <h3 className="translation-box-title">Source</h3>
+              <div className="translation-content source">
+                <pre>{sourceText}</pre>
+              </div>
+            </div>
 
-        {renderProgress()}
-        {translationError && (
-          <div className="error-message text-red-500 text-sm mt-1">
-            {translationError}
+            <div className="translation-box">
+              <h3 className="translation-box-title">Traduction</h3>
+              <div className="translation-content target">
+                <pre>{translationStream}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {(modelsError || translationError) && (
+          <div className="error-message">
+            {modelsError || translationError}
+            <button onClick={() => {
+              setModelsError(null);
+              setTranslationError(null);
+              if (modelsError) fetchModels();
+            }}>
+              {modelsError ? 'Réessayer' : '×'}
+            </button>
           </div>
         )}
       </div>

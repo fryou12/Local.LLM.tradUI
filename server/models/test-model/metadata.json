@@ -1,0 +1,5 @@
+{
+  "name": "Test Model",
+  "description": "Modèle de test",
+  "capabilities": ["traduction", "analyse"]
+}

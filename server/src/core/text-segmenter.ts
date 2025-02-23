@@ -1,5 +1,4 @@
 import { debugLog } from '../utils/logger';
-import { ModelConfig } from '../services/models';
 
 // Extension de String pour compter les occurrences
 declare global {
@@ -12,28 +11,27 @@ String.prototype.count = function(substring: string): number {
   return (this.match(new RegExp(substring, 'g')) || []).length;
 };
 
+export interface SegmentationConfig {
+  maxTokens: number;
+  optimalChunkSize: number;
+  overlapPercentage: number;
+  avgCharsPerToken: number;
+  preserveMarkup: boolean;
+  smartParagraphDetection: boolean;
+  contextWindow: number;
+  minSegmentLength?: number;
+}
+
 export interface TextSegment {
   id: string;
   text: string;
   metadata: {
     pageNumber: number;
-    segmentNumber: number;
     contextualInfo: {
       previousSegmentId?: string;
       nextSegmentId?: string;
-      isStartOfParagraph: boolean;
-      isEndOfParagraph: boolean;
-      specialMarkers: string[];
     };
   };
-}
-
-export interface SegmentationConfig extends ModelConfig {
-  preserveMarkup: boolean;
-  smartParagraphDetection: boolean;
-  contextWindow: number;
-  minSegmentLength: number;
-  optimalChunkSize: number;
 }
 
 export class TextSegmenter {
@@ -43,12 +41,15 @@ export class TextSegmenter {
   private static readonly CONTEXT_OVERLAP = 50;
 
   // Configurations spécifiques aux modèles
-  private static readonly MODEL_CONFIGS = {
-    'llama3:70b': { maxSentences: 3, maxChunkSize: 300 },
-    'llava:34b': { maxSentences: 3, maxChunkSize: 300 },
-    'deepseek-r1:32b': { maxSentences: 3, maxChunkSize: 300 },
-    'llama3:8b': { maxSentences: 5, maxChunkSize: 400 },
-    'llava:13b': { maxSentences: 5, maxChunkSize: 400 }
+  private static MODEL_CONFIGS: {
+    [key: string]: { maxSentences: number; maxChunkSize: number }
+  } = {
+    'llama3:70b': { maxSentences: 5, maxChunkSize: 2000 },
+    'llava:34b': { maxSentences: 5, maxChunkSize: 2000 },
+    'deepseek-r1:32b': { maxSentences: 5, maxChunkSize: 2000 },
+    'llama3:8b': { maxSentences: 8, maxChunkSize: 1500 },
+    'llava:13b': { maxSentences: 8, maxChunkSize: 1500 },
+    'default': { maxSentences: 10, maxChunkSize: 1000 }
   };
 
   private config: SegmentationConfig;
@@ -59,11 +60,8 @@ export class TextSegmenter {
     this.modelName = modelName;
   }
 
-  private getModelConfig() {
-    return TextSegmenter.MODEL_CONFIGS[this.modelName] || {
-      maxSentences: 8,
-      maxChunkSize: TextSegmenter.DEFAULT_MAX_CHUNK_SIZE
-    };
+  private getModelConfig(): { maxSentences: number; maxChunkSize: number } {
+    return TextSegmenter.MODEL_CONFIGS[this.modelName] || TextSegmenter.MODEL_CONFIGS['default'];
   }
 
   public segmentText(text: string, pageNumber: number): TextSegment[] {
@@ -120,13 +118,11 @@ export class TextSegmenter {
       text,
       metadata: {
         pageNumber,
-        segmentNumber,
         contextualInfo: {
-          isStartOfParagraph: segmentNumber === 0,
-          isEndOfParagraph: false, // À améliorer si nécessaire
-          specialMarkers: this.extractSpecialMarkers(text)
-        }
-      }
+          previousSegmentId: undefined,
+          nextSegmentId: undefined,
+        },
+      },
     };
   }
 
@@ -142,20 +138,26 @@ export class TextSegmenter {
     return markers.map(marker => marker.trim());
   }
 
+  private sortSegments(segments: TextSegment[]): TextSegment[] {
+    return segments.sort((a, b) => {
+      if (a.metadata.pageNumber !== b.metadata.pageNumber) {
+        return a.metadata.pageNumber - b.metadata.pageNumber;
+      }
+      
+      const prevIdA = a.metadata.contextualInfo.previousSegmentId || '';
+      const prevIdB = b.metadata.contextualInfo.previousSegmentId || '';
+      return prevIdA.localeCompare(prevIdB);
+    });
+  }
+
   /**
    * Réassemble les segments traduits en préservant la structure
    */
   public reassembleText(segments: TextSegment[]): string {
+    segments = this.sortSegments(segments);
     let currentPage = -1;
     let currentParagraph = '';
     const pages: string[] = [];
-
-    segments.sort((a, b) => {
-      if (a.metadata.pageNumber !== b.metadata.pageNumber) {
-        return a.metadata.pageNumber - b.metadata.pageNumber;
-      }
-      return a.metadata.segmentNumber - b.metadata.segmentNumber;
-    });
 
     segments.forEach(segment => {
       if (segment.metadata.pageNumber !== currentPage) {
@@ -166,14 +168,7 @@ export class TextSegmenter {
         currentPage = segment.metadata.pageNumber;
       }
 
-      if (segment.metadata.contextualInfo.isStartOfParagraph) {
-        if (currentParagraph) {
-          pages.push(currentParagraph);
-        }
-        currentParagraph = segment.text;
-      } else {
-        currentParagraph += ' ' + segment.text;
-      }
+      currentParagraph += segment.text + ' ';
     });
 
     if (currentParagraph) {

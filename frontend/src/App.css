@@ -1,0 +1,295 @@
+:root {
+  --primary-color: #4a90e2;
+  --error-color: #c62828;
+  --success-color: #2e7d32;
+  --text-color: #333;
+  --border-color: #ddd;
+  --background-color: #f5f5f5;
+  --hover-color: #357abd;
+  --disabled-color: #ccc;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--text-color);
+  background-color: var(--background-color);
+}
+
+.app-title {
+  text-align: center;
+  color: var(--primary-color);
+  margin: 20px 0;
+  font-size: 2.5em;
+}
+
+.app-container {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.config-panel {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.panel-title {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: var(--primary-color);
+  font-size: 1.5em;
+}
+
+.control-group {
+  margin-bottom: 20px;
+}
+
+.control-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+/* Styles spécifiques pour les icônes HeroIcons */
+.icon {
+  width: 24px !important;
+  height: 24px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Assurer que les SVG héritent correctement de la taille */
+.icon > svg {
+  width: 100%;
+  height: 100%;
+}
+
+.control-select {
+  width: 100%;
+  padding: 8px;
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  background-color: rgb(186, 186, 186);
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.control-select:hover {
+  border-color: var(--primary-color);
+}
+
+.control-select:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.control-select:disabled {
+  background-color: var(--background-color);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.control-button {
+  width: 100%;
+  padding: 10px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.control-button:hover:not(:disabled) {
+  background-color: var(--hover-color);
+}
+
+.control-button:disabled {
+  background-color: var(--disabled-color);
+  cursor: not-allowed;
+}
+
+.translate-button {
+  margin-top: 20px;
+  font-size: 16px;
+  padding: 12px;
+}
+
+.translation-panel {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.translation-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  height: calc(100vh - 250px);
+}
+
+.translation-box {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.translation-box-title {
+  margin: 0;
+  padding: 10px;
+  background-color: var(--background-color);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 1.1em;
+}
+
+.translation-content {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  background-color: white;
+}
+
+.translation-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+}
+
+.error-message {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #ffebee;
+  color: var(--error-color);
+  padding: 10px 20px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 1000;
+}
+
+.error-message button {
+  background: none;
+  border: none;
+  color: var(--error-color);
+  cursor: pointer;
+  font-size: 20px;
+  padding: 0;
+  margin-left: 10px;
+}
+
+.selected-file {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--text-color);
+  word-break: break-all;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.controls {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.file-input {
+  flex: 1;
+}
+
+.translation-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.control-button {
+  padding: 8px 16px;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.control-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 10px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-message button {
+  background: none;
+  border: none;
+  color: #c62828;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.translation-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.translation-box {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.translation-box-title {
+  margin: 0;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+}
+
+.translation-content {
+  padding: 10px;
+  min-height: 300px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.translation-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+}
