@@ -1,7 +1,0 @@
-{
-  "model_format": "gguf",
-  "model_type": "llama",
-  "context_length": 4096,
-  "model_path": "model.bin",
-  "quantization": "Q4_K_M"
-}

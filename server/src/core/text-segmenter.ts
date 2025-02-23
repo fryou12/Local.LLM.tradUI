@@ -12,169 +12,74 @@ String.prototype.count = function(substring: string): number {
 };
 
 export interface SegmentationConfig {
-  maxTokens: number;
-  optimalChunkSize: number;
-  overlapPercentage: number;
-  avgCharsPerToken: number;
-  preserveMarkup: boolean;
-  smartParagraphDetection: boolean;
-  contextWindow: number;
-  minSegmentLength?: number;
+  maxLength: number;
+  overlap: number;
 }
 
 export interface TextSegment {
-  id: string;
   text: string;
-  metadata: {
-    pageNumber: number;
-    contextualInfo: {
-      previousSegmentId?: string;
-      nextSegmentId?: string;
-    };
-  };
+  index: number;
 }
 
 export class TextSegmenter {
-  // Configuration statique de base
-  private static readonly DEFAULT_MIN_CHUNK_SIZE = 150;
-  private static readonly DEFAULT_MAX_CHUNK_SIZE = 500;
-  private static readonly CONTEXT_OVERLAP = 50;
-
-  // Configurations spécifiques aux modèles
-  private static MODEL_CONFIGS: {
-    [key: string]: { maxSentences: number; maxChunkSize: number }
-  } = {
-    'llama3:70b': { maxSentences: 5, maxChunkSize: 2000 },
-    'llava:34b': { maxSentences: 5, maxChunkSize: 2000 },
-    'deepseek-r1:32b': { maxSentences: 5, maxChunkSize: 2000 },
-    'llama3:8b': { maxSentences: 8, maxChunkSize: 1500 },
-    'llava:13b': { maxSentences: 8, maxChunkSize: 1500 },
-    'default': { maxSentences: 10, maxChunkSize: 1000 }
-  };
-
   private config: SegmentationConfig;
-  private modelName: string;
 
-  constructor(config: SegmentationConfig, modelName: string) {
-    this.config = config;
-    this.modelName = modelName;
-  }
-
-  private getModelConfig(): { maxSentences: number; maxChunkSize: number } {
-    return TextSegmenter.MODEL_CONFIGS[this.modelName] || TextSegmenter.MODEL_CONFIGS['default'];
-  }
-
-  public segmentText(text: string, pageNumber: number): TextSegment[] {
-    const modelConfig = this.getModelConfig();
-    const sentences = this.splitIntoSentences(text);
-    const segments: TextSegment[] = [];
-    let currentSegment: string[] = [];
-    let currentLength = 0;
-    let segmentNumber = 0;
-
-    for (let i = 0; i < sentences.length; i++) {
-      const sentence = sentences[i];
-      const sentenceLength = sentence.length;
-
-      // Vérifier si l'ajout de cette phrase dépasserait les limites
-      const wouldExceedMaxSentences = currentSegment.length >= modelConfig.maxSentences;
-      const wouldExceedMaxSize = currentLength + sentenceLength > modelConfig.maxChunkSize;
-
-      if (wouldExceedMaxSentences || wouldExceedMaxSize) {
-        // Sauvegarder le segment actuel
-        if (currentSegment.length > 0) {
-          segments.push(this.createSegment(currentSegment.join(' '), pageNumber, segmentNumber++));
-          currentSegment = [];
-          currentLength = 0;
-        }
-      }
-
-      currentSegment.push(sentence);
-      currentLength += sentenceLength;
-    }
-
-    // Ajouter le dernier segment s'il en reste
-    if (currentSegment.length > 0) {
-      segments.push(this.createSegment(currentSegment.join(' '), pageNumber, segmentNumber));
-    }
-
-    return segments;
-  }
-
-  private splitIntoSentences(text: string): string[] {
-    // Regex améliorée pour la détection des phrases
-    const sentenceRegex = /[^.!?]+[.!?]+/g;
-    const sentences = text.match(sentenceRegex) || [text];
-    return sentences.map(s => s.trim()).filter(s => s.length > 0);
-  }
-
-  private createSegment(
-    text: string,
-    pageNumber: number,
-    segmentNumber: number
-  ): TextSegment {
-    return {
-      id: `segment-${segmentNumber}`,
-      text,
-      metadata: {
-        pageNumber,
-        contextualInfo: {
-          previousSegmentId: undefined,
-          nextSegmentId: undefined,
-        },
-      },
+  constructor(config: SegmentationConfig) {
+    this.config = {
+      maxLength: config.maxLength || 1000,
+      overlap: config.overlap || 50
     };
   }
 
-  /**
-   * Extrait les marqueurs spéciaux (références, citations, etc.)
-   */
-  private extractSpecialMarkers(text: string): string[] {
-    if (!this.config.preserveMarkup) {
-      return [];
-    }
+  public segment(text: string): TextSegment[] {
+    debugLog('Début de la segmentation');
+    debugLog('Configuration:', this.config);
     
-    const markers = text.match(/(\[[^\]]+\]|\{[^\}]+\}|\([^\)]+\)|#[^\s]+)/g) || [];
-    return markers.map(marker => marker.trim());
-  }
+    const segments: TextSegment[] = [];
+    let currentPosition = 0;
+    let segmentIndex = 0;
 
-  private sortSegments(segments: TextSegment[]): TextSegment[] {
-    return segments.sort((a, b) => {
-      if (a.metadata.pageNumber !== b.metadata.pageNumber) {
-        return a.metadata.pageNumber - b.metadata.pageNumber;
-      }
+    while (currentPosition < text.length) {
+      // Calculer la fin du segment
+      let endPosition = currentPosition + this.config.maxLength;
       
-      const prevIdA = a.metadata.contextualInfo.previousSegmentId || '';
-      const prevIdB = b.metadata.contextualInfo.previousSegmentId || '';
-      return prevIdA.localeCompare(prevIdB);
-    });
-  }
-
-  /**
-   * Réassemble les segments traduits en préservant la structure
-   */
-  public reassembleText(segments: TextSegment[]): string {
-    segments = this.sortSegments(segments);
-    let currentPage = -1;
-    let currentParagraph = '';
-    const pages: string[] = [];
-
-    segments.forEach(segment => {
-      if (segment.metadata.pageNumber !== currentPage) {
-        if (currentParagraph) {
-          pages.push(currentParagraph);
-          currentParagraph = '';
+      // Si ce n'est pas la fin du texte, chercher une fin de phrase
+      if (endPosition < text.length) {
+        // Chercher le dernier point ou retour à la ligne dans la plage
+        const lastSentenceEnd = this.findLastSentenceEnd(
+          text.slice(currentPosition, endPosition + this.config.overlap)
+        );
+        
+        if (lastSentenceEnd > 0) {
+          endPosition = currentPosition + lastSentenceEnd;
         }
-        currentPage = segment.metadata.pageNumber;
+      } else {
+        endPosition = text.length;
       }
 
-      currentParagraph += segment.text + ' ';
-    });
+      // Créer le segment
+      segments.push({
+        text: text.slice(currentPosition, endPosition).trim(),
+        index: segmentIndex++
+      });
 
-    if (currentParagraph) {
-      pages.push(currentParagraph);
+      debugLog(`Segment ${segmentIndex} créé, longueur: ${endPosition - currentPosition}`);
+
+      // Avancer la position en tenant compte du chevauchement
+      currentPosition = endPosition;
     }
 
-    return pages.join('\n\n');
+    debugLog(`Segmentation terminée, ${segments.length} segments créés`);
+    return segments;
+  }
+
+  private findLastSentenceEnd(text: string): number {
+    // Chercher le dernier point suivi d'un espace ou d'un retour à la ligne
+    const matches = [...text.matchAll(/[.!?]\s+/g)];
+    if (matches.length > 0) {
+      const lastMatch = matches[matches.length - 1];
+      return lastMatch.index! + 1;
+    }
+    return -1;
   }
 }

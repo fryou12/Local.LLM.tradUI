@@ -89,62 +89,95 @@ export default function App() {
     fetchModels();
   }, []);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
-    try {
-      if (file.type === 'application/pdf') {
+    setSelectedFile(file);
+    setSourceText('');
+    setTranslationStream('');
+    setTranslating(false);
+    setTranslationError(null);
+
+    if (file.type === 'application/pdf') {
+      try {
         const formData = new FormData();
         formData.append('file', file);
-        
+
         const response = await fetch('/api/extract-text', {
           method: 'POST',
           body: formData
         });
+
+        const result = await response.json();
         
         if (!response.ok) {
-          throw new Error(`Erreur HTTP ${response.status}`);
+          throw new Error(result.error || `Erreur HTTP ${response.status}`);
         }
 
-        const data = await response.json();
-        if (data.success) {
-          setSourceText(data.text);
-          setSelectedFile(file);
-        } else {
-          throw new Error(data.error || 'Erreur lors de l\'extraction du texte');
+        if (!result.success) {
+          throw new Error(result.error || 'Erreur lors de l\'extraction du texte');
         }
-      } else {
+
+        setSourceText(result.text);
+        console.log('Informations PDF:', result.info);
+      } catch (error) {
+        console.error('Erreur lors de la lecture du fichier:', error);
+        setTranslationError(
+          error instanceof Error ? error.message : 'Erreur lors de la lecture du fichier'
+        );
+        setSourceText('');
+      }
+    } else {
+      try {
         const text = await file.text();
         setSourceText(text);
-        setSelectedFile(file);
+      } catch (error) {
+        console.error('Erreur lors de la lecture du fichier:', error);
+        setTranslationError(
+          error instanceof Error ? error.message : 'Erreur lors de la lecture du fichier'
+        );
+        setSourceText('');
       }
-      setTranslationError(null);
-    } catch (error) {
-      console.error('Erreur lors de la lecture du fichier:', error);
-      setTranslationError(
-        error instanceof Error ? error.message : 'Erreur lors de la lecture du fichier'
-      );
     }
   };
 
   const handleTranslate = async () => {
-    if (!selectedFile || !selectedModel) {
-      setTranslationError('Veuillez sélectionner un fichier et un modèle');
+    if (!sourceText && !selectedFile) {
+      setTranslationError('Veuillez fournir un texte ou un fichier à traduire');
       return;
     }
 
+    if (!selectedModel) {
+      setTranslationError('Veuillez sélectionner un modèle de traduction');
+      return;
+    }
+
+    if (!targetLanguage) {
+      setTranslationError('Veuillez sélectionner une langue cible');
+      return;
+    }
+
+    setTranslating(true);
+    setTranslationStream('');
+    setTranslationError(null);
+
     try {
-      setTranslating(true);
-      setTranslationStream('');
-      setTranslationError(null);
-      
       const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('selectedModel', selectedModel);
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      } else if (sourceText) {
+        formData.append('text', sourceText);
+      }
+      
       formData.append('targetLanguage', targetLanguage);
-      formData.append('useOCR', String(translationMode === 'ocr'));
-      formData.append('outputFormat', outputFormat);
+      formData.append('model', selectedModel); // Assurez-vous que selectedModel est défini
+
+      console.log('Envoi de la requête avec:', {
+        file: selectedFile?.name,
+        targetLanguage,
+        model: selectedModel
+      });
 
       const response = await fetch('/api/translate', {
         method: 'POST',
@@ -152,7 +185,8 @@ export default function App() {
       });
 
       if (!response.ok) {
-        throw new Error('Erreur lors de la traduction');
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Erreur HTTP ${response.status}`);
       }
 
       const reader = response.body?.getReader();
@@ -160,22 +194,40 @@ export default function App() {
         throw new Error('Impossible de lire la réponse');
       }
 
+      const decoder = new TextDecoder();
+      let buffer = '';
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const text = new TextDecoder().decode(value);
-        setTranslationStream(prev => {
-          const newText = prev + text;
-          const container = document.querySelector('.translation-content.target');
-          if (container && 
-            container.scrollTop > container.scrollHeight - container.clientHeight - 100) {
-            setTimeout(() => {
-              container.scrollTop = container.scrollHeight;
-            }, 0);
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              switch (data.status) {
+                case 'start':
+                  console.log('Début de la traduction:', data.message);
+                  break;
+                case 'success':
+                  setTranslationStream(prev => prev + data.text);
+                  break;
+                case 'error':
+                  throw new Error(data.error);
+                case 'end':
+                  console.log('Traduction terminée');
+                  break;
+              }
+            } catch (e) {
+              console.warn('Erreur lors du parsing de la progression:', e);
+            }
           }
-          return newText;
-        });
+        }
       }
     } catch (error) {
       console.error('Erreur de traduction:', error);
@@ -376,7 +428,7 @@ export default function App() {
 
           <button
             onClick={handleTranslate}
-            disabled={!selectedFile || translating}
+            disabled={!selectedFile && !sourceText || translating}
             className="control-button translate-button"
           >
             {translating ? 'Traduction en cours...' : 'Traduire'}

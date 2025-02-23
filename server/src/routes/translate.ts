@@ -1,307 +1,140 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { debugLog } from '../utils/logger';
-import { OCRProcessor, OCRTextChunk } from '../core/ocr-processor';
-import { DocumentTranslator } from '../services/document-translator';
-import { DocumentFormatter } from '../services/document-formatter';
 import { TranslationEngine } from '../core/translation-engine';
-import path from 'path';
-import fs from 'fs';
-import { ModelConfig } from '../config/models';
-import { ModelLoader } from '../services/model-loader';
-import { TranslationProgress } from '../types/translation';
-
-interface SegmentationConfig {
-  maxTokens: number;
-  optimalChunkSize: number;
-  overlapPercentage: number;
-  avgCharsPerToken: number;
-  preserveMarkup: boolean;
-  smartParagraphDetection: boolean;
-  contextWindow: number;
-  minSegmentLength: number;
-}
-
-// Renommer notre interface locale pour éviter les conflits
-interface TranslationChunk {
-  text: string;
-  index: number;
-  metadata: {
-    pageNumber: number;
-    startIndex: number;
-    endIndex: number;
-  };
-}
-
-// Map des codes de langue vers leurs noms complets
-const LANGUAGE_CODES: { [key: string]: string } = {
-  'fr': 'French',
-  'en': 'English',
-  'es': 'Spanish',
-  'de': 'German',
-  'it': 'Italian',
-  'pt': 'Portuguese',
-  'nl': 'Dutch',
-  'ru': 'Russian',
-  'zh': 'Chinese',
-  'ja': 'Japanese',
-  'ko': 'Korean'
-};
-
-// Fonction utilitaire pour normaliser le code de langue
-function normalizeLanguageCode(lang: string): string {
-  // Si c'est déjà un code de langue valide, le retourner
-  if (LANGUAGE_CODES[lang.toLowerCase()]) {
-    return LANGUAGE_CODES[lang.toLowerCase()];
-  }
-  // Si c'est un nom complet, le retourner tel quel
-  const fullNames = Object.values(LANGUAGE_CODES);
-  if (fullNames.includes(lang)) {
-    return lang;
-  }
-  // Par défaut, retourner French
-  return 'French';
-}
+import { extractTextFromFile } from '../services/text-extractor';
+import { checkModelAvailability } from '../services/models';
+import * as path from 'path';
+import * as fs from 'fs';
 
 const router = Router();
-const upload = multer({ dest: 'uploads/' });
 
-// Map pour stocker les sessions de traduction actives
-const activeSessions = new Map<string, {
-  translator: DocumentTranslator;
-  progress: any;
-}>();
+// Créer le dossier uploads s'il n'existe pas
+const uploadsDir = path.join(__dirname, '../../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
-const modelLoader = new ModelLoader();
+// Configuration de multer pour les fichiers PDF uniquement
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
 
-const translateText = async (text: string, modelName: string, targetLanguage: string): Promise<string> => {
-  debugLog('Starting translation:', { modelName, targetLanguage, textLength: text.length });
-  
-  try {
-    const config = modelLoader.listModels().find((m: ModelConfig) => m.id === `ollama/${modelName}`);
-    if (!config) {
-      throw new Error(`Modèle non trouvé: ${modelName}`);
-    }
-    const engine = new TranslationEngine(config);
-    const result = await engine.translateText(text, `ollama/${modelName}`, targetLanguage);
-    debugLog('Translation completed successfully');
-    return result;
-  } catch (err) {
-    const error = err as Error;
-    debugLog('Translation failed:', error);
-    throw new Error(`Translation failed: ${error.message}`);
+const fileFilter = (req: any, file: any, cb: any) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (ext !== '.pdf') {
+    cb(new Error('Seuls les fichiers PDF sont acceptés'), false);
+  } else {
+    cb(null, true);
   }
 };
 
+const upload = multer({ 
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB max
+  }
+});
+
 router.post('/', upload.single('file'), async (req, res) => {
+  let filePath: string | undefined;
+  
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Aucun fichier fourni' });
+    debugLog('Début de la requête de traduction');
+    debugLog('Body:', req.body);
+    debugLog('File:', req.file);
+
+    const { targetLanguage, model } = req.body;
+    let sourceText = req.body.text;
+
+    if (!targetLanguage) {
+      throw new Error('Langue cible requise');
     }
 
-    const selectedModel = req.body.selectedModel;
-    const targetLanguage = normalizeLanguageCode(req.body.targetLanguage || 'fr');
-    const useOCR = req.body.useOCR === 'true';
-    const outputFormat = (req.body.outputFormat || 'txt') as 'txt' | 'pdf';
-    const complexity = req.body.complexity || 'normal';
-    
-    if (!selectedModel) {
-      const fileSize = fs.statSync(req.file.path).size;
-      const recommendedModel = modelLoader.recommendModel(fileSize, complexity as 'simple' | 'normal' | 'complex');
-      debugLog(`Modèle recommandé: ${recommendedModel.name} (${recommendedModel.id})`);
-      return res.status(400).json({ 
-        error: 'Aucun modèle sélectionné',
-        recommendedModel: recommendedModel
-      });
+    if (!model) {
+      throw new Error('Modèle requis');
     }
 
-    // Vérifier si le modèle est disponible localement
-    const localModels = modelLoader.listModels();
-    const modelConfig = localModels.find((m: ModelConfig) => m.id === `ollama/${selectedModel}`);
-    
-    if (!modelConfig) {
-      return res.status(400).json({ 
-        error: 'Modèle non disponible localement',
-        availableModels: localModels
-      });
-    }
-
-    debugLog('=== DÉBUT TRADUCTION ===');
-    debugLog(`Fichier: ${req.file.originalname} (${path.extname(req.file.originalname)})`);
-    debugLog(`Modèle: ${modelConfig.name} (${modelConfig.id})`);
-    debugLog(`Taille du modèle: ${modelConfig.size}GB`);
-    debugLog(`Contexte max: ${modelConfig.context} tokens`);
-    debugLog(`Taille optimale des chunks: ${modelConfig.optimalChunkSize} tokens`);
-    debugLog(`Langue cible: ${targetLanguage}`);
-    debugLog(`OCR: ${useOCR}`);
-    debugLog(`Format de sortie: ${outputFormat}`);
-
-    let extractedSegments: OCRTextChunk[] = [];
-    const formatter = new DocumentFormatter();
-    const documentStyle = await formatter.analyzeOriginalStyle(req.file.path);
-
-    const sessionId = Date.now().toString();
-    const translator = new DocumentTranslator();
-    
-    // Initialiser la session avec un statut en cours
-    activeSessions.set(sessionId, {
-      translator,
-      progress: {
-        status: 'extracting',
-        progress: 0,
-        documentStyle,
-        totalSegments: 0,
-        currentSegment: 0,
-        currentText: '',
-        translatedText: ''
+    // Si un fichier est fourni, extraire son texte
+    if (req.file) {
+      filePath = req.file.path;
+      debugLog('Extraction du texte du fichier:', filePath);
+      try {
+        const extractionResult = await extractTextFromFile(filePath);
+        sourceText = extractionResult.text;
+        debugLog('Texte extrait avec succès, longueur:', sourceText.length);
+      } catch (error) {
+        debugLog('Erreur lors de l\'extraction:', error);
+        throw error;
       }
-    });
+    }
 
-    // Envoyer la réponse immédiatement pour commencer le suivi de progression
-    res.json({
-      sessionId,
-      message: 'Traduction démarrée'
-    });
+    if (!sourceText || sourceText.trim().length === 0) {
+      throw new Error('Texte source vide ou non fourni');
+    }
 
+    // Vérifier la disponibilité du modèle
+    const modelAvailable = await checkModelAvailability(model);
+    if (!modelAvailable) {
+      throw new Error(`Modèle ${model} non disponible`);
+    }
+
+    debugLog('Début de la traduction');
+    debugLog('Modèle:', model);
+    debugLog('Langue cible:', targetLanguage);
+    debugLog('Longueur du texte:', sourceText.length);
+
+    // Configuration du type de réponse pour le streaming
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Créer le moteur de traduction
+    const translator = new TranslationEngine();
+
+    // Envoyer un événement de début
+    res.write('data: ' + JSON.stringify({ status: 'start', message: 'Début de la traduction' }) + '\n\n');
+
+    // Traduire le texte avec streaming
     try {
-      debugLog(`Détection type de fichier: ${path.extname(req.file.originalname)}`);
-      debugLog(`Mode OCR: ${useOCR ? 'activé' : 'désactivé'}`);
+      await translator.translateText(sourceText, model, targetLanguage, (chunk) => {
+        res.write('data: ' + JSON.stringify({ status: 'success', text: chunk }) + '\n\n');
+      });
 
-      const newPath = req.file.path + path.extname(req.file.originalname);
-      await fs.promises.rename(req.file.path, newPath);
-      req.file.path = newPath;
-      
-      const ocrProcessor = new OCRProcessor(`ollama/${selectedModel}`);
-      extractedSegments = await ocrProcessor.extractText(req.file.path, useOCR);
-      
-      if (!extractedSegments || extractedSegments.length === 0) {
-        throw new Error('Aucun texte extrait du document');
-      }
+      // Envoyer un événement de fin
+      res.write('data: ' + JSON.stringify({ status: 'end', message: 'Traduction terminée' }) + '\n\n');
+      res.end();
+    } catch (error) {
+      // Envoyer une erreur au client
+      res.write('data: ' + JSON.stringify({ 
+        status: 'error', 
+        error: error instanceof Error ? error.message : 'Erreur de traduction' 
+      }) + '\n\n');
+      res.end();
+    }
 
-      debugLog(`Extraction réussie: ${extractedSegments.length} segments extraits`);
-      
-      const extractedText = extractedSegments.map(segment => segment.text).join('\n\n');
-
-      // Mettre à jour le statut après l'extraction réussie
-      const session = activeSessions.get(sessionId);
-      if (session) {
-        session.progress = {
-          ...session.progress,
-          status: 'translating',
-          totalSegments: extractedSegments.length,
-          currentText: extractedText
-        };
-      }
-
-      // Initialiser le traducteur avec la configuration
-      const segmentationConfig: SegmentationConfig = {
-        maxTokens: modelConfig.maxTokens,
-        optimalChunkSize: modelConfig.optimalChunkSize,
-        overlapPercentage: modelConfig.overlapPercentage,
-        avgCharsPerToken: modelConfig.avgCharsPerToken,
-        preserveMarkup: true,
-        smartParagraphDetection: true,
-        contextWindow: 2,
-        minSegmentLength: 50
-      };
-
-      // Traduire le document
-      const translatedSegments = await translator.translateDocument(
-        extractedText,
-        targetLanguage,
-        `ollama/${selectedModel}`,
-        segmentationConfig,
-        (progress: TranslationProgress) => {
-          const currentSession = activeSessions.get(sessionId);
-          if (currentSession) {
-            currentSession.progress = {
-              ...currentSession.progress,
-              progress: progress.progress,
-              status: progress.status,
-              currentPage: progress.currentPage,
-              totalPages: progress.totalPages,
-              translatedText: progress.translatedText,
-              error: progress.error
-            };
-          }
-        }
-      );
-
-      // Formater le document traduit
-      const outputPath = path.join(__dirname, '../../translations', `${path.basename(req.file.originalname, path.extname(req.file.originalname))}_translated.${outputFormat}`);
-      const formatter = new DocumentFormatter();
-      await formatter.formatOutput(
-        translatedSegments.map(segment => segment.translatedText).join('\n\n'),
-        outputPath,
-        outputFormat,
-        documentStyle
-      );
-
-      // Mettre à jour le statut après la traduction réussie
-      const finalSession = activeSessions.get(sessionId);
-      if (finalSession) {
-        finalSession.progress = {
-          ...finalSession.progress,
-          status: 'completed',
-          progress: 100,
-          translatedText: translatedSegments.map(segment => segment.translatedText).join('\n\n'),
-          outputFile: `/translations/${path.basename(outputPath)}`
-        };
-      }
-      debugLog('Traduction terminée avec succès');
-    } catch (err) {
-      const error = err as Error;
-      debugLog('Erreur pendant la traduction:', error);
-      const session = activeSessions.get(sessionId);
-      if (session) {
-        session.progress = {
-          ...session.progress,
-          status: 'error',
-          error: error.message,
-          progress: 0
-        };
+  } catch (error) {
+    debugLog('Erreur de traduction:', error);
+    res.status(400).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur de traduction'
+    });
+  } finally {
+    // Nettoyage du fichier temporaire
+    if (filePath && fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+        debugLog('Fichier temporaire supprimé:', filePath);
+      } catch (error) {
+        debugLog('Erreur lors de la suppression du fichier temporaire:', error);
       }
     }
-  } catch (err) {
-    const error = err as Error;
-    debugLog('Erreur lors de la traduction:', error);
-    res.status(500).json({
-      error: 'Erreur lors de la traduction',
-      details: error.message
-    });
-  }
-});
-
-// Route pour vérifier la progression d'une traduction
-router.get('/progress/:sessionId', (req, res) => {
-  const { sessionId } = req.params;
-  const session = activeSessions.get(sessionId);
-
-  if (!session) {
-    return res.status(404).json({ error: 'Session non trouvée' });
-  }
-
-  res.json(session.progress);
-});
-
-// Route pour nettoyer une session terminée
-router.delete('/session/:sessionId', (req, res) => {
-  const { sessionId } = req.params;
-  activeSessions.delete(sessionId);
-  res.json({ message: 'Session supprimée' });
-});
-
-// Route pour obtenir la liste des modèles disponibles
-router.get('/models', (req, res) => {
-  try {
-    const models = modelLoader.listModels();
-    res.json(models);
-  } catch (err) {
-    const error = err as Error;
-    res.status(500).json({
-      error: 'Erreur lors de la récupération des modèles',
-      details: error.message
-    });
   }
 });
 
