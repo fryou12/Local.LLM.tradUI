@@ -25,7 +25,12 @@ L.L.M.Trad est une application de traduction moderne qui utilise des modèles de
 
 1. Cloner le dépôt :
 ```bash
+<<<<<<< HEAD
 git clone https://github.com/votre-utilisateur/Local.LLM.tradUI.git
+=======
+git clone https://github.com/fryou12/Local.LLM.tradUI.git
+cd book-translator
+>>>>>>> f25643c457aaf497da964b20065991a743d152fa
 ```
 
 2. Installer les dépendances :
@@ -87,4 +92,8 @@ Les contributions sont les bienvenues ! Veuillez suivre ces étapes :
 
 ## Licence
 
+<<<<<<< HEAD
 Distribué sous la licence MIT. Voir `LICENSE` pour plus d'informations.
+=======
+MIT
+>>>>>>> f25643c457aaf497da964b20065991a743d152fa
